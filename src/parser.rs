@@ -21,6 +21,11 @@ impl Rss {
     }
 }
 
+const ITEM: &[u8] = b"item";
+const CH: &[u8] = b"channel";
+const TITLE: &[u8] = b"title";
+const SUB: &[u8] = b"itunes:subtitle";
+
 // process items and calculate bytes processed
 fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let buf_rd = BufReader::new(r);
@@ -35,35 +40,38 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let mut reader = Reader::from_reader(buf_rd);
     reader.trim_text(true);
 
-    let mut state: Option<ParseState> = None;
+    let mut tag_stack: Vec<Vec<u8>> = Vec::with_capacity(2);
 
     loop {
-        state = match reader.read_event(&mut buf) {
+        let mut state: ParseState = ParseState::Empty;
+        match reader.read_event(&mut buf) {
             Ok(Event::Eof) => {
                 break;
             }
             Err(e) => {
                 log::error!("{:?}", e);
-                None
             }
-            Ok(Event::Start(ref e)) => match (e.name(), state) {
-                (b"item", _) => Some(ParseState::ItemStart),
-                (b"title", Some(ParseState::ItemStart)) => Some(ParseState::TitleStart),
-                _ => None,
-            },
-            Ok(Event::CData(e)) => match state {
-                Some(ParseState::TitleStart) => Some(ParseState::Title(e.escaped().to_vec())),
-                _ => None,
-            },
-            _ => None,
+            Ok(Event::Start(ref e)) => {
+                tag_stack.push(e.name().to_vec());
+            }
+            Ok(Event::End(_)) => {
+                tag_stack.pop();
+            }
+            Ok(Event::CData(e)) => {
+                let s1 = tag_stack
+                    .clone()
+                    .iter()
+                    .map(|xs| String::from_utf8(xs.to_vec()).unwrap())
+                    .collect::<Vec<String>>();
+                log::debug!("stack {:?}", s1);
+            }
+            _ => (),
         };
         let len = buf.len() as u32;
-        state.iter().for_each(|st| {
-            let (c, t) = st.calc_bytes(current_bytes, total_bytes, len);
-            current_bytes = c;
-            total_bytes = t;
-            st.make_item(&mut current, &mut items, &buf);
-        });
+        let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
+        current_bytes = c;
+        total_bytes = t;
+        state.make_item(&mut current, &mut items);
         buf.clear();
     }
 
@@ -71,23 +79,20 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 }
 
 enum ParseState {
-    ItemStart,
-    ItemEnd,
-    TitleStart,
+    Empty,
     Title(Vec<u8>),
-    Subtitle,
+    Subtitle(Vec<u8>),
     PubDate,
     Enclosure,
 }
 impl ParseState {
     fn calc_bytes(&self, current: u32, total: u32, len: u32) -> (u32, u32) {
         match self {
-            ParseState::ItemStart => (current + len, total),
             _ => (current, total),
         }
     }
 
-    fn make_item(&self, item: &mut Item, items: &mut Vec<Item>, buf: &Vec<u8>) {
+    fn make_item(&self, item: &mut Item, items: &mut Vec<Item>) {
         match self {
             Self::Title(xs) => {
                 log::debug!("get title {:?}", String::from_utf8_lossy(xs));
