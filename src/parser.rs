@@ -39,6 +39,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 
     let mut reader = Reader::from_reader(buf_rd);
     reader.trim_text(true);
+    //reader.check_end_names(false);
 
     let mut tag_stack: Vec<Vec<u8>> = Vec::with_capacity(2);
 
@@ -46,6 +47,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
         let mut state: ParseState = ParseState::Empty;
         match reader.read_event(&mut buf) {
             Ok(Event::Eof) => {
+                log::debug!("Eof break");
                 break;
             }
             Err(e) => {
@@ -58,14 +60,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
                 tag_stack.pop();
             }
             Ok(Event::CData(e)) => {
-                if tag_stack.len() > 3 || tag_stack[2].as_slice() == ITEM {
-                    match tag_stack[3].as_slice() {
-                        TITLE => {
-                            state = ParseState::Title(e.escaped().to_vec());
-                        }
-                        _ => (),
-                    }
-                }
+                log::debug!("cdata {}", String::from_utf8_lossy(&e.unescaped().unwrap()));
             }
             _ => (),
         };
@@ -119,10 +114,22 @@ mod tests {
         let url = "http://rss.lizhi.fm/rss/14093.xml";
         let rss = Rss {
             rss_url: url.to_string(),
-            range: (0u32, 8000u32),
+            range: (500u32, 8000u32),
         };
-        let rd = rss.fetch();
-        let (_, len) = reader_to_xml(rd);
-        log::debug!("bytes processed {}", len);
+        let mut rd = rss.fetch();
+        let mut buf = [0u8; 1024];
+        rd.read(&mut buf).expect("rss response error");
+        log::debug!("rss response {}", String::from_utf8_lossy(&buf));
+    }
+
+    #[test]
+    fn parse_xml() {
+        let _lg = Logger::try_with_str("debug")
+            .unwrap()
+            .log_to_stdout()
+            .start()
+            .unwrap();
+        let bytes = std::include_bytes!("../samplerss.xml");
+        reader_to_xml(bytes.to_vec().as_slice());
     }
 }
