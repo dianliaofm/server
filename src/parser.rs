@@ -31,35 +31,50 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 
     let mut total_bytes = 0u32;
     let mut current_bytes = 0u32;
-    let mut flush_bytes = false;
 
     let mut reader = Reader::from_reader(buf_rd);
     reader.trim_text(true);
 
+    let mut state: Option<ParseState> = None;
+
     loop {
         match reader.read_event(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                //println!("event start {}", String::from_utf8_lossy(e.name()));
-            }
-            Ok(Event::End(ref e)) => {
-                if e.name() == b"item" {
-                    log::debug!("item end current {}, total {}", current_bytes, total_bytes);
-                    flush_bytes = true;
-                }
-            }
             Ok(Event::Eof) => break,
-            _ => (),
+            Err(e) => log::error!("{:?}", e),
+            Ok(ev) => {}
         }
-        current_bytes += buf.len() as u32;
-        if flush_bytes {
-            total_bytes += current_bytes;
-            current_bytes = 0;
-            flush_bytes = false;
-        }
+        state.iter().for_each(|st| {
+            let (c, t) = st.calc_bytes(current_bytes, total_bytes);
+            current_bytes = c;
+            total_bytes = t;
+            st.make_item(&mut current, &mut items);
+        });
         buf.clear();
     }
 
     (items, total_bytes)
+}
+
+enum ParseState {
+    ItemStart,
+    ItemEnd,
+    Title,
+    Subtitle,
+    PubDate,
+    Enclosure,
+}
+impl ParseState {
+    fn calc_bytes(&self, current: u32, total: u32) -> (u32, u32) {
+        match self {
+            _ => (current, total),
+        }
+    }
+
+    fn make_item(&self, item: &mut Item, items: &mut Vec<Item>)  {
+        match self {
+            _ => (),
+        }
+    }
 }
 
 #[cfg(test)]
