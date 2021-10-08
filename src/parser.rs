@@ -22,7 +22,7 @@ impl Rss {
 }
 
 const ITEM: &[u8] = b"item";
-const CH: &[u8] = b"channel";
+//const CH: &[u8] = b"channel";
 const TITLE: &[u8] = b"title";
 const SUB: &[u8] = b"itunes:subtitle";
 
@@ -58,12 +58,14 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
                 tag_stack.pop();
             }
             Ok(Event::CData(e)) => {
-                let s1 = tag_stack
-                    .clone()
-                    .iter()
-                    .map(|xs| String::from_utf8(xs.to_vec()).unwrap())
-                    .collect::<Vec<String>>();
-                log::debug!("stack {:?}", s1);
+                if tag_stack.len() > 3 || tag_stack[2].as_slice() == ITEM {
+                    match tag_stack[3].as_slice() {
+                        TITLE => {
+                            state = ParseState::Title(e.escaped().to_vec());
+                        }
+                        _ => (),
+                    }
+                }
             }
             _ => (),
         };
