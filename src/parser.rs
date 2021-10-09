@@ -25,13 +25,13 @@ const ITEM: &[u8] = b"item";
 //const CH: &[u8] = b"channel";
 const TITLE: &[u8] = b"title";
 const SUB: &[u8] = b"itunes:subtitle";
+const PUBDATE: &[u8] = b"pubDate";
 
 // process items and calculate bytes processed
 fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let buf_rd = BufReader::new(r);
 
     let mut items = Vec::new();
-    let mut current: Item = Item::default();
     let mut buf: Vec<u8> = Vec::new();
 
     let mut total_bytes = 0u32;
@@ -42,9 +42,9 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     //reader.check_end_names(false);
 
     let mut tag_stack: Vec<Vec<u8>> = Vec::with_capacity(2);
+    let mut state: ParseState = ParseState::Empty;
 
     loop {
-        let mut state: ParseState = ParseState::Empty;
         match reader.read_event(&mut buf) {
             Ok(Event::Eof) => {
                 log::debug!("Eof break");
@@ -53,14 +53,36 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             Err(e) => {
                 log::error!("{:?}", e);
             }
-            Ok(Event::Start(ref e)) => {
-                tag_stack.push(e.name().to_vec());
+            Ok(Event::Start(e)) => {
+                let tag = e.name();
+                if tag == ITEM {
+                    items.push(Item::default());
+                } else {
+                    let len = tag_stack.len();
+                    if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
+                        match tag {
+                            TITLE => state = ParseState::Title(vec![]),
+                            SUB => state = ParseState::Subtitle(vec![]),
+                            PUBDATE => state = ParseState::PubDate(vec![]),
+                            _ => (),
+                        }
+                    }
+                }
+                tag_stack.push(tag.to_vec());
             }
             Ok(Event::End(_)) => {
+                //state = ParseState::Empty;
                 tag_stack.pop();
             }
             Ok(Event::CData(e)) => {
-                log::debug!("cdata {}", String::from_utf8_lossy(&e.unescaped().unwrap()));
+                if let Ok(t) = e.unescaped() {
+                    state.set_text(t.to_vec());
+                }
+            }
+            Ok(Event::Text(e)) => {
+                if let Ok(t) = e.unescaped() {
+                    state.set_text(t.to_vec());
+                }
             }
             _ => (),
         };
@@ -68,32 +90,47 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
         let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
         current_bytes = c;
         total_bytes = t;
-        state.make_item(&mut current, &mut items);
+        state.make_item(&mut items);
         buf.clear();
     }
 
     (items, total_bytes)
 }
 
+#[derive(Debug, Clone)]
 enum ParseState {
     Empty,
     Title(Vec<u8>),
     Subtitle(Vec<u8>),
-    PubDate,
+    PubDate(Vec<u8>),
     Enclosure,
 }
 impl ParseState {
     fn calc_bytes(&self, current: u32, total: u32, len: u32) -> (u32, u32) {
         match self {
-            _ => (current, total),
+            _ => (current + len, total),
         }
     }
 
-    fn make_item(&self, item: &mut Item, items: &mut Vec<Item>) {
-        match self {
-            Self::Title(xs) => {
-                log::debug!("get title {:?}", String::from_utf8_lossy(xs));
+    fn make_item(&self, items: &mut Vec<Item>) {
+        match items.pop() {
+            Some(mut item) => {
+                match self {
+                    Self::Title(t) => item.title = String::from_utf8(t.to_vec()).unwrap(),
+                    Self::Subtitle(t) => item.subtitle = String::from_utf8(t.to_vec()).unwrap(),
+                    Self::PubDate(t) => item.pub_date = String::from_utf8(t.to_vec()).unwrap(),
+                    _ => (),
+                }
+                items.push(item);
             }
+            None => (),
+        }
+    }
+    fn set_text(&mut self, text: Vec<u8>) {
+        match self {
+            Self::Title(xs) => *xs = text,
+            Self::Subtitle(xs) => *xs = text,
+            Self::PubDate(xs) => *xs = text,
             _ => (),
         }
     }
@@ -130,6 +167,8 @@ mod tests {
             .start()
             .unwrap();
         let bytes = std::include_bytes!("../samplerss.xml");
-        reader_to_xml(bytes.to_vec().as_slice());
+        let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
+        log::debug!("items {:?}", items);
+        log::debug!("total bytes {:?}", total);
     }
 }
