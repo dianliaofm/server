@@ -28,7 +28,7 @@ const SUB: &[u8] = b"itunes:subtitle";
 const PUBDATE: &[u8] = b"pubDate";
 
 // process items and calculate bytes processed
-fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
+pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let buf_rd = BufReader::new(r);
 
     let mut items = Vec::new();
@@ -73,6 +73,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 
                 if e.name() == ITEM {
                     items.push(current_item.clone());
+                    total_bytes += current_bytes;
                     current_item = Item::default();
                 }
             }
@@ -89,9 +90,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             _ => (),
         };
         let len = buf.len() as u32;
-        let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
-        current_bytes = c;
-        total_bytes = t;
+        current_bytes = state.calc_bytes(current_bytes, len);
         state.update_item(&mut current_item);
         buf.clear();
     }
@@ -105,20 +104,21 @@ enum ParseState {
     Title(Vec<u8>),
     Subtitle(Vec<u8>),
     PubDate(Vec<u8>),
-    Enclosure,
+    //Enclosure,
 }
+
 impl ParseState {
-    fn calc_bytes(&self, current: u32, total: u32, len: u32) -> (u32, u32) {
+    fn calc_bytes(&self, current: u32, len: u32) -> u32 {
         match self {
-            _ => (current + len, total),
+            _ => current + len,
         }
     }
 
     fn update_item(&self, item: &mut Item) {
         match self {
-            Self::Title(t) => item.title = String::from_utf8(t.to_vec()).unwrap(),
-            Self::Subtitle(t) => item.subtitle = String::from_utf8(t.to_vec()).unwrap(),
-            Self::PubDate(t) => item.pub_date = String::from_utf8(t.to_vec()).unwrap(),
+            Self::Title(t) => item.title = t.to_vec(),
+            Self::Subtitle(t) => item.subtitle = t.to_vec(),
+            Self::PubDate(t) => item.pub_date = t.to_vec(),
             _ => (),
         }
     }
@@ -164,9 +164,10 @@ mod tests {
             .unwrap();
         let bytes = std::include_bytes!("../samplerss.xml");
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
+        assert_eq!(items.len(), 2);
         for (n, i) in items.iter().enumerate() {
             log::debug!("items {} {:?}, ", n, i);
         }
-        log::debug!("total bytes {:?}", total);
+        assert_eq!(total, 2206);
     }
 }
