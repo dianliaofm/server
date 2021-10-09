@@ -32,6 +32,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let buf_rd = BufReader::new(r);
 
     let mut items = Vec::new();
+    let mut current_item = Item::default();
     let mut buf: Vec<u8> = Vec::new();
 
     let mut total_bytes = 0u32;
@@ -55,24 +56,25 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             }
             Ok(Event::Start(e)) => {
                 let tag = e.name();
-                if tag == ITEM {
-                    items.push(Item::default());
-                } else {
-                    let len = tag_stack.len();
-                    if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
-                        match tag {
-                            TITLE => state = ParseState::Title(vec![]),
-                            SUB => state = ParseState::Subtitle(vec![]),
-                            PUBDATE => state = ParseState::PubDate(vec![]),
-                            _ => (),
-                        }
+                let len = tag_stack.len();
+                if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
+                    match tag {
+                        TITLE => state = ParseState::Title(vec![]),
+                        SUB => state = ParseState::Subtitle(vec![]),
+                        PUBDATE => state = ParseState::PubDate(vec![]),
+                        _ => (),
                     }
                 }
                 tag_stack.push(tag.to_vec());
             }
-            Ok(Event::End(_)) => {
-                //state = ParseState::Empty;
+            Ok(Event::End(e)) => {
+                state = ParseState::Empty;
                 tag_stack.pop();
+
+                if e.name() == ITEM {
+                    items.push(current_item.clone());
+                    current_item = Item::default();
+                }
             }
             Ok(Event::CData(e)) => {
                 if let Ok(t) = e.unescaped() {
@@ -90,7 +92,7 @@ fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
         let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
         current_bytes = c;
         total_bytes = t;
-        state.make_item(&mut items);
+        state.update_item(&mut current_item);
         buf.clear();
     }
 
@@ -112,18 +114,12 @@ impl ParseState {
         }
     }
 
-    fn make_item(&self, items: &mut Vec<Item>) {
-        match items.pop() {
-            Some(mut item) => {
-                match self {
-                    Self::Title(t) => item.title = String::from_utf8(t.to_vec()).unwrap(),
-                    Self::Subtitle(t) => item.subtitle = String::from_utf8(t.to_vec()).unwrap(),
-                    Self::PubDate(t) => item.pub_date = String::from_utf8(t.to_vec()).unwrap(),
-                    _ => (),
-                }
-                items.push(item);
-            }
-            None => (),
+    fn update_item(&self, item: &mut Item) {
+        match self {
+            Self::Title(t) => item.title = String::from_utf8(t.to_vec()).unwrap(),
+            Self::Subtitle(t) => item.subtitle = String::from_utf8(t.to_vec()).unwrap(),
+            Self::PubDate(t) => item.pub_date = String::from_utf8(t.to_vec()).unwrap(),
+            _ => (),
         }
     }
     fn set_text(&mut self, text: Vec<u8>) {
@@ -168,7 +164,9 @@ mod tests {
             .unwrap();
         let bytes = std::include_bytes!("../samplerss.xml");
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
-        log::debug!("items {:?}", items);
+        for (n, i) in items.iter().enumerate() {
+            log::debug!("items {} {:?}, ", n, i);
+        }
         log::debug!("total bytes {:?}", total);
     }
 }
