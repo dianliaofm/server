@@ -26,6 +26,7 @@ const ITEM: &[u8] = b"item";
 const TITLE: &[u8] = b"title";
 const SUB: &[u8] = b"itunes:subtitle";
 const PUBDATE: &[u8] = b"pubDate";
+const ENCLOSURE: &[u8] = b"enclosure";
 
 // process items and calculate bytes processed
 pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
@@ -67,10 +68,28 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
                 }
                 tag_stack.push(tag.to_vec());
             }
+            // <enclosure />
+            Ok(Event::Empty(e)) => {
+                let len = tag_stack.len();
+                if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
+                    match e.name() {
+                        ENCLOSURE => {
+                            if let Some(url) =
+                                e.attributes().flatten().filter(|x| x.key == b"url").next()
+                            {
+                                state = ParseState::Enclosure(url.value.to_vec());
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+
             Ok(Event::End(e)) => {
                 state = ParseState::Empty;
                 tag_stack.pop();
 
+                // </item> calculate total bytes; add item to list
                 if e.name() == ITEM {
                     items.push(current_item.clone());
                     total_bytes += current_bytes;
@@ -104,7 +123,7 @@ enum ParseState {
     Title(Vec<u8>),
     Subtitle(Vec<u8>),
     PubDate(Vec<u8>),
-    //Enclosure,
+    Enclosure(Vec<u8>),
 }
 
 impl ParseState {
@@ -119,6 +138,7 @@ impl ParseState {
             Self::Title(t) => item.title = t.to_vec(),
             Self::Subtitle(t) => item.subtitle = t.to_vec(),
             Self::PubDate(t) => item.pub_date = t.to_vec(),
+            Self::Enclosure(t) => item.url = t.to_vec(),
             _ => (),
         }
     }
@@ -166,7 +186,12 @@ mod tests {
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
         assert_eq!(items.len(), 2);
         for (n, i) in items.iter().enumerate() {
-            log::debug!("items {} {:?}, ", n, i);
+            log::debug!(
+                "items {}, title: {}, url: {} ",
+                n,
+                String::from_utf8_lossy(&i.title),
+                String::from_utf8_lossy(&i.url),
+            );
         }
         assert_eq!(total, 2206);
     }
