@@ -1,5 +1,8 @@
 use crate::model::Item;
-use quick_xml::{events::Event, Reader};
+use quick_xml::{
+    events::{BytesText, Event},
+    Reader,
+};
 use std::io::{BufReader, Read};
 
 type ByteRange = (u32, u32);
@@ -28,6 +31,8 @@ const SUB: &[u8] = b"itunes:subtitle";
 const PUBDATE: &[u8] = b"pubDate";
 const ENCLOSURE: &[u8] = b"enclosure";
 
+type TagStack = Vec<Vec<u8>>;
+
 // process items and calculate bytes processed
 pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     let buf_rd = BufReader::new(r);
@@ -43,10 +48,10 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     reader.trim_text(true);
     reader.check_end_names(false);
 
-    let mut tag_stack: Vec<Vec<u8>> = Vec::with_capacity(2);
-    let mut state: ParseState = ParseState::Empty;
+    let mut tag_stack: TagStack = Vec::with_capacity(2);
 
     loop {
+        let mut state: ParseState = ParseState::Empty;
         match reader.read_event(&mut buf) {
             Ok(Event::Eof) => {
                 state = ParseState::Eof;
@@ -56,21 +61,11 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             }
             Ok(Event::Start(e)) => {
                 let tag = e.name();
-                let len = tag_stack.len();
-                if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
-                    match tag {
-                        TITLE => state = ParseState::Title(vec![]),
-                        SUB => state = ParseState::Subtitle(vec![]),
-                        PUBDATE => state = ParseState::PubDate(vec![]),
-                        _ => (),
-                    }
-                }
                 tag_stack.push(tag.to_vec());
             }
             // <enclosure />
             Ok(Event::Empty(e)) => {
-                let len = tag_stack.len();
-                if len > 0 && tag_stack[len - 1].as_slice() == ITEM {
+                if check_last_item(&tag_stack) {
                     match e.name() {
                         ENCLOSURE => {
                             if let Some(url) =
@@ -98,14 +93,10 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
                 }
             }
             Ok(Event::CData(e)) => {
-                if let Ok(t) = e.unescaped() {
-                    state.set_text(t.to_vec());
-                }
+                state = text_state(&state, &e, &tag_stack);
             }
             Ok(Event::Text(e)) => {
-                if let Ok(t) = e.unescaped() {
-                    state.set_text(t.to_vec());
-                }
+                state = text_state(&state, &e, &tag_stack);
             }
             _ => (),
         };
@@ -125,6 +116,31 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     }
 
     (items, total_bytes)
+}
+
+fn text_state(_: &ParseState, e: &BytesText, stack: &TagStack) -> ParseState {
+    match (check_item(stack, 2), e.unescaped()) {
+        (true, Ok(txt)) => {
+            let vec_u8 = txt.into_owned();
+            log::debug!("text state {}", String::from_utf8_lossy(&vec_u8));
+            match vec_u8.as_slice() {
+                TITLE => ParseState::Title(vec_u8),
+                SUB => ParseState::Subtitle(vec_u8),
+                PUBDATE => ParseState::PubDate(vec_u8),
+                _ => ParseState::Empty,
+            }
+        }
+        _ => ParseState::Empty,
+    }
+}
+
+fn check_item(stack: &TagStack, offset: usize) -> bool {
+    let len = stack.len();
+    len >= offset && stack[len - offset].as_slice() == ITEM
+}
+
+fn check_last_item(stack: &TagStack) -> bool {
+    check_item(stack, 1)
 }
 
 #[derive(Debug, Clone)]
@@ -152,14 +168,6 @@ impl ParseState {
             Self::Subtitle(t) => item.subtitle = t.to_vec(),
             Self::PubDate(t) => item.pub_date = t.to_vec(),
             Self::Enclosure(t) => item.url = t.to_vec(),
-            _ => (),
-        }
-    }
-    fn set_text(&mut self, text: Vec<u8>) {
-        match self {
-            Self::Title(xs) => *xs = text,
-            Self::Subtitle(xs) => *xs = text,
-            Self::PubDate(xs) => *xs = text,
             _ => (),
         }
     }
@@ -210,10 +218,10 @@ mod tests {
             );
         }
         let last_pos = total as usize;
-        let delta=40;
-        let item_end = &bytes[(last_pos - delta)..(last_pos + delta)];
+        let delta = 7;
+        let item_end = &bytes[(last_pos - delta)..last_pos];
         let str_in_file = String::from_utf8_lossy(item_end);
-        log::debug!("{}", str_in_file);
+        assert_eq!("</item>", str_in_file);
     }
 
     #[test]
