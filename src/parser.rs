@@ -121,12 +121,12 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 fn text_state(_: &ParseState, e: &BytesText, stack: &TagStack) -> ParseState {
     match (check_item(stack, 2), e.unescaped()) {
         (true, Ok(txt)) => {
-            let vec_u8 = txt.into_owned();
-            log::debug!("text state {}", String::from_utf8_lossy(&vec_u8));
-            match vec_u8.as_slice() {
-                TITLE => ParseState::Title(vec_u8),
-                SUB => ParseState::Subtitle(vec_u8),
-                PUBDATE => ParseState::PubDate(vec_u8),
+            let txt_vec = txt.into_owned();
+            let tag = stack.last().unwrap();
+            match tag.as_slice() {
+                TITLE => ParseState::Title(txt_vec),
+                SUB => ParseState::Subtitle(txt_vec),
+                PUBDATE => ParseState::PubDate(txt_vec),
                 _ => ParseState::Empty,
             }
         }
@@ -211,13 +211,15 @@ mod tests {
         assert_eq!(items.len(), 6);
         for (n, i) in items.iter().enumerate() {
             log::debug!(
-                "items {}, title: {}, url: {} ",
+                "items {}, title: {}, url: {}, pubdate: {}",
                 n,
                 String::from_utf8_lossy(&i.title),
                 String::from_utf8_lossy(&i.url),
+                String::from_utf8_lossy(&i.pub_date),
             );
         }
         let last_pos = total as usize;
+        //last tag should be </item>
         let delta = 7;
         let item_end = &bytes[(last_pos - delta)..last_pos];
         let str_in_file = String::from_utf8_lossy(item_end);
