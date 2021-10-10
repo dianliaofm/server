@@ -49,8 +49,7 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
     loop {
         match reader.read_event(&mut buf) {
             Ok(Event::Eof) => {
-                log::debug!("Eof break");
-                break;
+                state = ParseState::Eof;
             }
             Err(e) => {
                 log::error!("{:?}", e);
@@ -110,12 +109,19 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             }
             _ => (),
         };
-        let len = buf.len() as u32;
-        let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
+
+        //buf.len() may not catch plain text at the start of file.
+        let pos = reader.buffer_position() as u32;
+        let (c, t) = state.calc_bytes(current_bytes, total_bytes, pos);
         current_bytes = c;
         total_bytes = t;
         state.update_item(&mut current_item);
         buf.clear();
+
+        if let ParseState::Eof = state {
+            log::debug!("Eof current {} , total {}", current_bytes, total_bytes);
+            break;
+        }
     }
 
     (items, total_bytes)
@@ -129,13 +135,14 @@ enum ParseState {
     PubDate(Vec<u8>),
     Enclosure(Vec<u8>),
     ItemEnd,
+    Eof,
 }
 
 impl ParseState {
-    fn calc_bytes(&self, current: u32, total: u32, len: u32) -> (u32, u32) {
+    fn calc_bytes(&self, _current: u32, total: u32, position: u32) -> (u32, u32) {
         match self {
-            Self::ItemEnd => (current + len, current + total),
-            _ => (current + len, total),
+            Self::ItemEnd => (position, position),
+            _ => (position, total),
         }
     }
 
@@ -163,6 +170,8 @@ mod tests {
     use super::*;
     use flexi_logger::Logger;
 
+    const TEST_URL: &str = "http://rss.lizhi.fm/rss/14093.xml";
+
     fn init_log() {
         let _lg = Logger::try_with_str("debug")
             .unwrap()
@@ -174,7 +183,7 @@ mod tests {
     #[test]
     fn fetch_test() {
         init_log();
-        let url = "http://rss.lizhi.fm/rss/14093.xml";
+        let url = TEST_URL;
         let rss = Rss {
             rss_url: url.to_string(),
             range: (500u32, 8000u32),
@@ -189,6 +198,7 @@ mod tests {
     fn parse_xml() {
         init_log();
         let bytes = std::include_bytes!("../samplerss.xml");
+        assert_eq!(bytes.len(), 5114);
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
         assert_eq!(items.len(), 6);
         for (n, i) in items.iter().enumerate() {
@@ -199,6 +209,19 @@ mod tests {
                 String::from_utf8_lossy(&i.url),
             );
         }
-        log::debug!("total {}", total);
+        let last_pos = total as usize;
+        let delta=40;
+        let item_end = &bytes[(last_pos - delta)..(last_pos + delta)];
+        let str_in_file = String::from_utf8_lossy(item_end);
+        log::debug!("{}", str_in_file);
+    }
+
+    #[test]
+    fn parse_segment() {
+        init_log();
+        let bytes = std::include_bytes!("../samplerss.xml");
+        //let bytes_vec = bytes.to_vec();
+        //let slice1 = &bytes[30000..];
+        log::debug!("{}", bytes.len());
     }
 }
