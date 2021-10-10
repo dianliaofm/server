@@ -163,13 +163,17 @@ mod tests {
     use super::*;
     use flexi_logger::Logger;
 
-    #[test]
-    fn fetch_test() {
+    fn init_log() {
         let _lg = Logger::try_with_str("debug")
             .unwrap()
             .log_to_stdout()
             .start()
             .unwrap();
+    }
+
+    #[test]
+    fn fetch_test() {
+        init_log();
         let url = "http://rss.lizhi.fm/rss/14093.xml";
         let rss = Rss {
             rss_url: url.to_string(),
@@ -183,13 +187,9 @@ mod tests {
 
     #[test]
     fn parse_xml() {
-        let _lg = Logger::try_with_str("debug")
-            .unwrap()
-            .log_to_stdout()
-            .start()
-            .unwrap();
+        init_log();
         let bytes = std::include_bytes!("../samplerss.xml");
-        let (items, _) = reader_to_xml(bytes.to_vec().as_slice());
+        let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
         assert_eq!(items.len(), 6);
         for (n, i) in items.iter().enumerate() {
             log::debug!(
@@ -199,5 +199,6 @@ mod tests {
                 String::from_utf8_lossy(&i.url),
             );
         }
+        log::debug!("total {}", total);
     }
 }
