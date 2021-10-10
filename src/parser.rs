@@ -41,7 +41,7 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 
     let mut reader = Reader::from_reader(buf_rd);
     reader.trim_text(true);
-    //reader.check_end_names(false);
+    reader.check_end_names(false);
 
     let mut tag_stack: Vec<Vec<u8>> = Vec::with_capacity(2);
     let mut state: ParseState = ParseState::Empty;
@@ -87,13 +87,15 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
 
             Ok(Event::End(e)) => {
                 state = ParseState::Empty;
-                tag_stack.pop();
+                let last = tag_stack.pop();
 
                 // </item> calculate total bytes; add item to list
-                if e.name() == ITEM {
-                    items.push(current_item.clone());
-                    total_bytes += current_bytes;
-                    current_item = Item::default();
+                if let Some(t) = last {
+                    if t == ITEM && e.name() == ITEM {
+                        items.push(current_item.clone());
+                        current_item = Item::default();
+                        state = ParseState::ItemEnd;
+                    }
                 }
             }
             Ok(Event::CData(e)) => {
@@ -109,7 +111,9 @@ pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
             _ => (),
         };
         let len = buf.len() as u32;
-        current_bytes = state.calc_bytes(current_bytes, len);
+        let (c, t) = state.calc_bytes(current_bytes, total_bytes, len);
+        current_bytes = c;
+        total_bytes = t;
         state.update_item(&mut current_item);
         buf.clear();
     }
@@ -124,12 +128,14 @@ enum ParseState {
     Subtitle(Vec<u8>),
     PubDate(Vec<u8>),
     Enclosure(Vec<u8>),
+    ItemEnd,
 }
 
 impl ParseState {
-    fn calc_bytes(&self, current: u32, len: u32) -> u32 {
+    fn calc_bytes(&self, current: u32, total: u32, len: u32) -> (u32, u32) {
         match self {
-            _ => current + len,
+            Self::ItemEnd => (current + len, current + total),
+            _ => (current + len, total),
         }
     }
 
@@ -183,8 +189,8 @@ mod tests {
             .start()
             .unwrap();
         let bytes = std::include_bytes!("../samplerss.xml");
-        let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
-        assert_eq!(items.len(), 2);
+        let (items, _) = reader_to_xml(bytes.to_vec().as_slice());
+        assert_eq!(items.len(), 6);
         for (n, i) in items.iter().enumerate() {
             log::debug!(
                 "items {}, title: {}, url: {} ",
@@ -193,6 +199,5 @@ mod tests {
                 String::from_utf8_lossy(&i.url),
             );
         }
-        assert_eq!(total, 2206);
     }
 }
