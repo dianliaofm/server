@@ -9,8 +9,8 @@ use std::io::{BufReader, Read};
 type ByteRange = (u32, u32);
 
 pub struct Rss {
-    rss_url: String,
-    range: ByteRange,
+    pub rss_url: String,
+    pub range: ByteRange,
 }
 
 impl Rss {

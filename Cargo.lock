@@ -87,7 +87,7 @@ dependencies = [
  "flexi_logger",
  "log",
  "quick-xml",
- "serde",
+ "simple-error",
  "ureq",
 ]
 
@@ -233,7 +233,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0452695941410a58c8ce4391707ba9bad26a247173bd9886a05a5e8a8babec75"
 dependencies = [
  "memchr",
- "serde",
 ]
 
 [[package]]
@@ -307,24 +306,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde"
-version = "1.0.126"
+name = "simple-error"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
-dependencies = [
- "serde_derive",
-]
-
-[[package]]
-name = "serde_derive"
-version = "1.0.126"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "963a7dbc9895aeac7ac90e74f34a5d5261828f79df35cbed41e10189d3804d43"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
+checksum = "cc47a29ce97772ca5c927f75bac34866b16d64e07f330c3248e2d7226623901b"
 
 [[package]]
 name = "spin"
