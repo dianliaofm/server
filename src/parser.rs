@@ -43,10 +43,10 @@ pub mod quick {
                     Ok(Event::End(e)) if e.name() == ITEM => {
                         if !event_list.is_empty() {
                             right = reader.buffer_position();
-                            event_list.push(Event::End(e.into_owned()));
                             for ev in &event_list {
                                 assert!(writer.write_event(ev).is_ok())
                             }
+                            assert!(writer.write_event(Event::End(e.into_owned())).is_ok());
                             event_list.clear();
                         }
                     }
@@ -71,7 +71,6 @@ pub mod quick {
     mod tests {
         use super::*;
         use crate::util::init_log;
-        use log::debug;
         use std::include_bytes;
 
         #[test]
@@ -82,10 +81,10 @@ pub mod quick {
 
             let client = Client {};
             let (new_bytes, left, right) = client.parse_valid(bytes2.as_slice());
-            debug!("left {}, right {}", left, right);
-            let left1 = (left - 6) as usize;
-            let item_tag1 = &bytes2[left1..left as usize];
+            let item_tag1 = &bytes2[(left - 6)..left];
+            let item_tag2 = &bytes2[(right - 7)..right];
             assert_eq!(b"<item>", item_tag1);
+            assert_eq!(b"</item>", item_tag2);
 
             assert_eq!(b"<item>", &new_bytes[0..6]);
             let new_len = new_bytes.len();
