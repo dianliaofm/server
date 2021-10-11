@@ -1,7 +1,7 @@
 use std::io::BufRead;
 
-pub type ItemStart = u32;
-pub type ItemEnd = u32;
+pub type ItemStart = usize;
+pub type ItemEnd = usize;
 pub type ValidItems = (Vec<u8>, ItemStart, ItemEnd);
 pub trait Parser {
     fn parse_valid(&self, input: impl BufRead) -> ValidItems;
@@ -26,24 +26,38 @@ pub mod quick {
             let mut writer = Writer::new(Cursor::new(Vec::new()));
             let mut buf: Vec<u8> = Vec::new();
 
-            let mut left: Option<u32> = None;
-            let mut right = 0u32;
+            let mut left: Option<usize> = None;
+            let mut right = 0usize;
+
+            let mut event_list: Vec<Event> = Vec::new();
 
             loop {
                 match reader.read_event(&mut buf) {
                     Ok(Event::Eof) => break,
                     Ok(Event::Start(e)) if e.name() == ITEM => {
                         if let None = left {
-                            left = Some(reader.buffer_position() as u32);
+                            left = Some(reader.buffer_position());
                         }
-                        assert!(writer.write_event(Event::Start(e.into_owned())).is_ok());
+                        event_list.push(Event::Start(e.into_owned()));
                     }
                     Ok(Event::End(e)) if e.name() == ITEM => {
-                        right = reader.buffer_position() as u32;
+                        if !event_list.is_empty() {
+                            right = reader.buffer_position();
+                            event_list.push(Event::End(e.into_owned()));
+                            for ev in &event_list {
+                                assert!(writer.write_event(ev).is_ok())
+                            }
+                            event_list.clear();
+                        }
                     }
-                    Ok(e) => assert!(writer.write_event(e).is_ok()),
+                    Ok(e) => {
+                        if !event_list.is_empty() {
+                            event_list.push(e.into_owned());
+                        }
+                    }
                     Err(e) => log::debug!("Error at {}: {:?}", reader.buffer_position(), e),
                 }
+                buf.clear();
             }
 
             (
@@ -69,7 +83,13 @@ pub mod quick {
             let client = Client {};
             let (new_bytes, left, right) = client.parse_valid(bytes2.as_slice());
             debug!("left {}, right {}", left, right);
-            debug!("{}", String::from_utf8_lossy(new_bytes.as_slice()));
+            let left1 = (left - 6) as usize;
+            let item_tag1 = &bytes2[left1..left as usize];
+            assert_eq!(b"<item>", item_tag1);
+
+            assert_eq!(b"<item>", &new_bytes[0..6]);
+            let new_len = new_bytes.len();
+            assert_eq!(b"</item>", &new_bytes[(new_len - 7)..new_len]);
         }
     }
 }

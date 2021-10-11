@@ -12,5 +12,5 @@ pub struct Item {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Enclosure {
-    pub url:String,
+    pub url: String,
 }
