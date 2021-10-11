@@ -22,6 +22,11 @@ impl Rss {
             .call()?;
         Ok(resp.into_reader())
     }
+
+    pub fn fetch_items(&self) -> Result<ItemsInfo, Box<dyn Error>> {
+        let reader = self.fetch()?;
+        Ok(reader_to_xml(reader))
+    }
 }
 
 const ITEM: &[u8] = b"item";
@@ -32,9 +37,9 @@ const PUBDATE: &[u8] = b"pubDate";
 const ENCLOSURE: &[u8] = b"enclosure";
 
 type TagStack = Vec<Vec<u8>>;
-
+type ItemsInfo = (Vec<Item>, u32);
 // process items and calculate bytes processed
-pub fn reader_to_xml(r: impl Read) -> (Vec<Item>, u32) {
+pub fn reader_to_xml(r: impl Read) -> ItemsInfo {
     let buf_rd = BufReader::new(r);
 
     let mut items = Vec::new();
@@ -177,6 +182,7 @@ impl ParseState {
 mod tests {
     use super::*;
     use flexi_logger::Logger;
+    use log::debug;
 
     const TEST_URL: &str = "http://rss.lizhi.fm/rss/14093.xml";
 
@@ -196,7 +202,7 @@ mod tests {
             rss_url: url.to_string(),
             range: (500u32, 8000u32),
         };
-        let mut rd = rss.fetch();
+        let mut rd = rss.fetch().expect("http request failed");
         let mut buf = [0u8; 1024];
         rd.read(&mut buf).expect("rss response error");
         log::debug!("rss response {}", String::from_utf8_lossy(&buf));
@@ -222,11 +228,20 @@ mod tests {
     }
 
     #[test]
-    fn parse_segment() {
+    fn get_items() {
         init_log();
-        let bytes = std::include_bytes!("../samplerss.xml");
-        //let bytes_vec = bytes.to_vec();
-        //let slice1 = &bytes[30000..];
-        log::debug!("{}", bytes.len());
+        let client = Rss {
+            rss_url: TEST_URL.to_string(),
+            range: (1000u32, 10_000u32),
+        };
+        let (items, total) = client.fetch_items().unwrap();
+        debug!("bytes prcoessed {}", total);
+        for i in items {
+            debug!(
+                "{:?}, {:?}",
+                String::from_utf8_lossy(&i.title),
+                String::from_utf8_lossy(&i.url)
+            );
+        }
     }
 }
