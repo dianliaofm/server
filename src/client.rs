@@ -24,7 +24,7 @@ impl Fetcher for Client {
     fn parse_segment(&self, url: String, range: ByteRange, seg_size: u32) -> FetchResult {
         let (start, end) = range;
         let mut left = start;
-        let mut right = start + seg_size;
+        let mut right = std::cmp::min(start + seg_size, end);
 
         let mut list: Vec<Item> = vec![];
 
@@ -87,6 +87,23 @@ mod tests {
         let client = Client { min_bytes: 10 };
         let range = (3000u32, 20_000u32);
         let size = 5000u32;
+        let (items, next) = client
+            .parse_segment(TEST_URL.to_string(), range, size)
+            .expect("parse segment failed");
+        assert!(items.len() > 1);
+        for i in items {
+            assert!(i.title.len() > 5);
+            debug!("item {}", String::from_utf8_lossy(&i.title));
+        }
+        debug!("next start byte {}", next);
+    }
+
+    #[test]
+    fn seg_test3() {
+        init_log();
+        let client = Client { min_bytes: 10 };
+        let range = (3000u32, 20_000u32);
+        let size = 30_000u32;
         let (items, next) = client
             .parse_segment(TEST_URL.to_string(), range, size)
             .expect("parse segment failed");
