@@ -209,21 +209,16 @@ mod tests {
         assert_eq!(bytes.len(), 5114);
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
         assert_eq!(items.len(), 6);
-        for (n, i) in items.iter().enumerate() {
-            log::debug!(
-                "items {}, title: {}, url: {}, pubdate: {}",
-                n,
-                String::from_utf8_lossy(&i.title),
-                String::from_utf8_lossy(&i.url),
-                String::from_utf8_lossy(&i.pub_date),
-            );
+        for i in items{
+            assert_eq!(i.title.len(), 17);
+            assert_eq!(i.pub_date.len(), 30);
+            assert_eq!(i.url.len(), 16);
         }
         let last_pos = total as usize;
         //last tag should be </item>
         let delta = 7;
         let item_end = &bytes[(last_pos - delta)..last_pos];
-        let str_in_file = String::from_utf8_lossy(item_end);
-        assert_eq!("</item>", str_in_file);
+        assert_eq!("</item>".as_bytes(), item_end);
     }
 
     #[test]
