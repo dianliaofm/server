@@ -3,6 +3,7 @@ use quick_xml::{
     events::{BytesText, Event},
     Reader,
 };
+use std::error::Error;
 use std::io::{BufReader, Read};
 
 type ByteRange = (u32, u32);
@@ -13,14 +14,13 @@ pub struct Rss {
 }
 
 impl Rss {
-    pub fn fetch(&self) -> impl Read {
+    pub fn fetch(&self) -> Result<impl Read, Box<dyn Error>> {
         let (start, end) = self.range;
 
-        ureq::get(&self.rss_url)
+        let resp = ureq::get(&self.rss_url)
             .set("Range", &format!("bytes={}-{}", start, end))
-            .call()
-            .unwrap()
-            .into_reader()
+            .call()?;
+        Ok(resp.into_reader())
     }
 }
 
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(bytes.len(), 5114);
         let (items, total) = reader_to_xml(bytes.to_vec().as_slice());
         assert_eq!(items.len(), 6);
-        for i in items{
+        for i in items {
             assert_eq!(i.title.len(), 17);
             assert_eq!(i.pub_date.len(), 30);
             assert_eq!(i.url.len(), 16);
