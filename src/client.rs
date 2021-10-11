@@ -7,7 +7,6 @@ pub type FetchInfo = (Vec<Item>, NextStart);
 pub type FetchResult = Result<FetchInfo, Box<dyn Error>>;
 
 pub trait Fetcher {
-    fn parse_all(&self, url: String) -> Vec<Item>;
     // return next start index
     fn parse_segment(&self, url: String, range: ByteRange, seg_size: u32) -> FetchResult;
 }
@@ -17,10 +16,6 @@ pub struct Client {
 }
 
 impl Fetcher for Client {
-    fn parse_all(&self, _url: String) -> Vec<Item> {
-        unimplemented!()
-    }
-
     fn parse_segment(&self, url: String, range: ByteRange, seg_size: u32) -> FetchResult {
         let (start, end) = range;
         let mut left = start;
