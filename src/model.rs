@@ -1,7 +1,16 @@
-#[derive(Debug, Clone, PartialEq, Default)]
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct Item {
-    pub title: Vec<u8>,
-    pub subtitle: Vec<u8>,
-    pub pub_date: Vec<u8>,
-    pub url: Vec<u8>,
+    pub title: String,
+    #[serde(rename = "itunes:subtitle")]
+    pub subtitle: String,
+    pub description: String,
+    #[serde(rename = "pubDate")]
+    pub pub_date: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct Enclosure {
+    pub url:String,
 }
