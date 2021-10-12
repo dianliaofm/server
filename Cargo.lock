@@ -86,9 +86,9 @@ version = "0.1.0"
 dependencies = [
  "flexi_logger",
  "log",
- "quick-xml",
  "serde",
  "simple-error",
+ "sloppy_podcast_tool",
  "ureq",
 ]
 
@@ -332,6 +332,16 @@ name = "simple-error"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc47a29ce97772ca5c927f75bac34866b16d64e07f330c3248e2d7226623901b"
+
+[[package]]
+name = "sloppy_podcast_tool"
+version = "1.0.0"
+source = "git+https://e.coding.net/zhetengcloud/podcast/sloppy_podcast_tool.git?tag=v1.2#01b1d8f229f2b59a1f89684aab34afe09a650085"
+dependencies = [
+ "log",
+ "quick-xml",
+ "serde",
+]
 
 [[package]]
 name = "spin"
