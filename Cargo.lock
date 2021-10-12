@@ -86,7 +86,6 @@ version = "0.1.0"
 dependencies = [
  "flexi_logger",
  "log",
- "serde",
  "simple-error",
  "sloppy_podcast_tool",
  "ureq",
