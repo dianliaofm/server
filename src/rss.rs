@@ -52,4 +52,36 @@ pub mod sloppy {
             ))
         }
     }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::util::init_log;
+        use log::debug;
+        use sloppy_podcast_tool::parser::quick;
+
+        const TEST_UTL: &str = "http://rss.lizhi.fm/rss/14093.xml";
+
+        #[test]
+        fn get_eps() {
+            init_log();
+            let client = Client::new(quick::Client {});
+            let mut start = 3000usize;
+            let win_size = 10_000usize;
+
+            let mut count = 0;
+            while count < 3 {
+                let (eps, next_start) = client
+                    .parse_rss(TEST_UTL, (start, start + win_size))
+                    .expect("get eps failed");
+
+                for i in eps {
+                    debug!("{:?}", i.title);
+                }
+                debug!("next byte start {}", next_start);
+
+                start = next_start;
+                count += 1;
+            }
+        }
+    }
 }
