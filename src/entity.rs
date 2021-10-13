@@ -1,7 +1,6 @@
-use serde::Serialize;
 use sloppy_podcast_tool::{date::to_timestamp, model::Item};
 
-#[derive(Debug, Serialize, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Episode {
     pub title: String,
     pub subtitle: String,

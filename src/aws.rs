@@ -62,7 +62,7 @@ impl PutBuilder {
         self.map.insert(
             k.to_string(),
             AttributeValue {
-                s: Some(n.to_string()),
+                n: Some(n.to_string()),
                 ..Default::default()
             },
         );
@@ -84,5 +84,28 @@ impl From<Episode> for PutRequest {
             .set_n("timestamp", ep.timestamp)
             .set_s("url", &ep.url)
             .build()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::util::init_log;
+
+    #[test]
+    fn save_episodes() {
+        init_log();
+        let eps = (0..5)
+            .map(|x| Episode {
+                title: format!("title test {}", x),
+                subtitle: format!("sub test {}", x),
+                description: format!("desc test {}", x),
+                date: format!("date test {}", x),
+                timestamp: 2000 + x as u64,
+                url: format!("url test {}", x),
+            })
+            .collect::<Vec<Episode>>();
+        let dn = Dynamo::new(Region::UsEast1);
+        dn.save_eps("test1", eps).expect("save episode failed");
     }
 }
