@@ -57,14 +57,14 @@ pub mod sloppy {
         use super::*;
         use crate::util::init_log;
         use log::debug;
-        use sloppy_podcast_tool::parser::quick;
+        use sloppy_podcast_tool::get_parser;
 
         const TEST_UTL: &str = "http://rss.lizhi.fm/rss/14093.xml";
 
         #[test]
         fn get_eps() {
             init_log();
-            let client = Client::new(quick::Client {});
+            let client = Client::new(get_parser());
             let mut start = 3000usize;
             let win_size = 10_000usize;
 

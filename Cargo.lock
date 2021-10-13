@@ -1223,8 +1223,8 @@ checksum = "c307a32c1c5c437f38c7fd45d753050587732ba8628319fbdf12a7e289ccc590"
 
 [[package]]
 name = "sloppy_podcast_tool"
-version = "1.4.0"
-source = "git+https://e.coding.net/zhetengcloud/podcast/sloppy_podcast_tool.git?tag=v1.4#06928146106bed0b7a74b7783d9f4af74232faf4"
+version = "1.5.0"
+source = "git+https://e.coding.net/zhetengcloud/podcast/sloppy_podcast_tool.git?tag=v1.5#0e17dfede86988c37697ba54238e20174d2f9e63"
 dependencies = [
  "chrono",
  "log",
