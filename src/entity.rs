@@ -1,6 +1,6 @@
 use sloppy_podcast_tool::{date::to_timestamp, model::Item};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Episode {
     pub title: String,
     pub subtitle: String,

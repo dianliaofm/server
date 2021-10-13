@@ -1,7 +1,7 @@
 pub mod aws;
 pub mod entity;
 pub mod rss;
-mod util;
+pub mod util;
 
 use entity::Episode;
 use std::error::Error;
