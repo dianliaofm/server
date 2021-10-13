@@ -69,13 +69,13 @@ pub mod sloppy {
             let win_size = 10_000usize;
 
             let mut count = 0;
-            while count < 3 {
+            while count < 2 {
                 let (eps, next_start) = client
                     .parse_rss(TEST_UTL, (start, start + win_size))
                     .expect("get eps failed");
 
                 for i in eps {
-                    debug!("{:?}", i.title);
+                    debug!("{:?}", i);
                 }
                 debug!("next byte start {}", next_start);
 

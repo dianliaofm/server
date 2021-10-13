@@ -12,3 +12,6 @@ log = "^0.4"
 simple-error = "^0.2"
 sloppy_podcast_tool = { git = "https://e.coding.net/zhetengcloud/podcast/sloppy_podcast_tool.git", tag = "v1.4" }
 serde = { version = "^1.0", features = ["derive"] }
+rusoto_dynamodb = { version = "^0.42", default_features = false, features=["rustls"] }
+rusoto_core = { version = "^0.42", default_features = false, features=["rustls"] }
+tokio = { version = "^1", features = ["full"] }
