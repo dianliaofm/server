@@ -1,11 +1,5 @@
-use crate::entity::Episode;
-use std::error::Error;
+use crate::{entity::Episode, EpisodeResult, Range};
 use ureq::{Agent, AgentBuilder};
-
-pub type Range = (usize, usize);
-pub type NextBytePosition = usize;
-pub type EpisodeInfo = (Vec<Episode>, NextBytePosition);
-pub type EpisodeResult = Result<EpisodeInfo, Box<dyn Error>>;
 
 pub trait Parser {
     fn parse_rss(&self, url: &str, range: Range) -> EpisodeResult;
