@@ -32,12 +32,10 @@ mod tests {
             vec![
                 Episode {
                     timestamp: 11,
-
                     ..Default::default()
                 },
                 Episode {
                     timestamp: 12,
-
                     ..Default::default()
                 }
             ]
