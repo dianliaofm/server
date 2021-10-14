@@ -26,12 +26,12 @@ $(dist)/%/app.zip: $(dist)/%/bootstrap
 
 $(dests): %: $(dist)/%/app.zip
 
-upload_parse: $(dist)/aws/app.zip
+upload_parse: $(dist)/aws_parse/app.zip
 	aws lambda update-function-code --function-name $(AWS_PARSE) --zip-file fileb://$<
 
 invoke_parse:
-	aws lambda invoke --function-name $(aws_fn) $(aws_out) \
-	--output text --payload fileb://$(aws_event) \
+	aws lambda invoke --function-name $(AWS_PARSE) $(aws_out) \
+	--output text --payload fileb://$(aws_parse_event) \
 	--log-type Tail > $(aws_log)
 
 log_parse:
