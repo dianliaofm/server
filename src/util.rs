@@ -1,4 +1,6 @@
 use crate::entity::Episode;
+use simple_error::SimpleError;
+use std::error::Error;
 
 pub fn init_log() {
     let _lg = flexi_logger::Logger::try_with_env_or_str("debug")
@@ -10,6 +12,11 @@ pub fn init_log() {
 
 pub fn filter_time(timestamp: u64) -> impl Fn(&Episode) -> bool {
     move |e: &Episode| -> bool { e.timestamp > timestamp }
+}
+
+
+pub fn to_simple(e: Box<dyn Error>) -> SimpleError {
+    SimpleError::new(e.to_string())
 }
 
 #[cfg(test)]
