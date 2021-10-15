@@ -2,7 +2,7 @@ use dianliao_cloud::util;
 use lambda_runtime::{handler_fn, Context, Error};
 //use rusoto_core::Region;
 use serde::{Deserialize, Serialize};
-use simple_error::SimpleResult;
+use simple_error::{SimpleResult, SimpleError};
 use std::collections::HashMap;
 
 #[derive(Deserialize)]
@@ -50,6 +50,10 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
+
+    let dest_buck = std::env::var("DEST_BUCK").map_err(|e| SimpleError::new(e.to_string()))?;
+    log::debug!("save to {}", dest_buck);
+
     for r in req.records {
         log::debug!("{:?}", r);
     }
