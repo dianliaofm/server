@@ -7,10 +7,10 @@
       "eventSource": "aws:dynamodb",
       "awsRegion": "us-west-2",
       "dynamodb": {
-        "ApproximateCreationDateTime": 1479499740,
+        "ApproximateCreationDateTime": 1479499740.0,
         "Keys": {
           "timestamp": {
-            "N": 1479499740
+            "N": "1479499740"
           },
           "title": {
             "S": "test title 1"

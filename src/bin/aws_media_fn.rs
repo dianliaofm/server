@@ -22,7 +22,7 @@ struct Record {
 #[serde(rename_all = "PascalCase")]
 struct DB {
     #[serde(rename = "ApproximateCreationDateTime")]
-    time: u64,
+    time: f32,
     keys: Attrs,
     new_image: Attrs,
 }
@@ -33,7 +33,7 @@ type Attrs = HashMap<String, Attr>;
 #[serde(rename_all = "UPPERCASE")]
 struct Attr {
     s: Option<String>,
-    n: Option<u64>,
+    n: Option<String>,
 }
 
 #[derive(Serialize)]
