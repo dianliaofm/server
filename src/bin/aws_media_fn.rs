@@ -12,10 +12,11 @@ struct Request {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct Record {
-    #[serde(rename = "awsRegion")]
     aws_region: String,
     dynamodb: DB,
+    event_name: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -39,6 +40,7 @@ struct Attr {
 #[derive(Serialize)]
 struct Response {
     request_id: String,
+    msg: String,
 }
 
 #[tokio::main]
@@ -51,13 +53,16 @@ async fn main() -> Result<(), Error> {
 
 async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
 
-    let dest_buck = std::env::var("DEST_BUCK").map_err(|e| SimpleError::new(e.to_string()))?;
+    let dest_buck = std::env::var("DEST_BUCK").map_err(|_| SimpleError::new("Dest Bucket not set".to_string()))?;
     log::debug!("save to {}", dest_buck);
+
+    let mut msg = String::from("");
 
     for r in req.records {
         log::debug!("{:?}", r);
     }
     Ok(Response {
         request_id: ctx.request_id,
+        msg,
     })
 }
