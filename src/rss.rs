@@ -1,5 +1,4 @@
-use crate::{entity::Episode, EpisodeResult, Range};
-use ureq::{Agent, AgentBuilder};
+use crate::{EpisodeResult, Range};
 
 pub trait Parser {
     fn parse_rss(&self, url: &str, range: Range) -> EpisodeResult;
@@ -7,8 +6,10 @@ pub trait Parser {
 
 pub mod sloppy {
     use super::*;
+    use crate::entity::Episode;
     use sloppy_podcast_tool::{model::Item, parser::Parser as XParser};
     use std::io::BufReader;
+    use ureq::{Agent, AgentBuilder};
 
     pub struct Client<P: XParser> {
         parser: P,
