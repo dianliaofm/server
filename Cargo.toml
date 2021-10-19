@@ -14,5 +14,6 @@ sloppy_podcast_tool = { git = "https://e.coding.net/zhetengcloud/podcast/sloppy_
 serde = { version = "^1.0", features = ["derive"] }
 rusoto_dynamodb = { version = "^0.42", default_features = false, features=["rustls"] }
 rusoto_core = { version = "^0.42", default_features = false, features=["rustls"] }
+rusoto_s3 = { version = "^0.42", default_features = false, features=["rustls"] }
 tokio = { version = "^1", features = ["full"] }
 lambda_runtime = "^0.3"

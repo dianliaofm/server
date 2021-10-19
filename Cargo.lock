@@ -322,6 +322,7 @@ dependencies = [
  "log",
  "rusoto_core",
  "rusoto_dynamodb",
+ "rusoto_s3",
  "serde",
  "simple-error",
  "sloppy_podcast_tool",
@@ -1240,6 +1241,18 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+]
+
+[[package]]
+name = "rusoto_s3"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fedcadf3d73c2925b05d547b66787f2219c5e727a98c893fff5cf2197dbd678"
+dependencies = [
+ "bytes 0.4.12",
+ "futures 0.1.31",
+ "rusoto_core",
+ "xml-rs",
 ]
 
 [[package]]

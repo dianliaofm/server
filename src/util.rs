@@ -14,7 +14,6 @@ pub fn filter_time(timestamp: u64) -> impl Fn(&Episode) -> bool {
     move |e: &Episode| -> bool { e.timestamp > timestamp }
 }
 
-
 pub fn to_simple(e: Box<dyn Error>) -> SimpleError {
     SimpleError::new(e.to_string())
 }
