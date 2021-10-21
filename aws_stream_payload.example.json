@@ -23,8 +23,11 @@
           "title": {
             "S": "test title 1 new"
           },
+          "url": {
+            "S": "http://example.com"
+          },
           "description": {
-            "S" : "test description 1"
+            "S": "test description 1"
           }
         },
         "SequenceNumber": "13021600000000001596893679",
