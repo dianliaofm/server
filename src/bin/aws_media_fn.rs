@@ -82,6 +82,7 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         match x {
             Ok(ep) => {
                 save_to_s3(ep.url.as_str(), "sls11", "ep1.mp3")
+                    .await
                     .map_err(|_| SimpleError::new("s3 save failed"))?;
             }
             Err(e) => log::debug!("err {:?}", e),
@@ -94,15 +95,18 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
     })
 }
 
+use futures::stream::StreamExt;
 use sloppy_auth::{aws::s3::Sign, util as u2};
+use std::convert::TryInto;
 use url::Url;
 
-fn save_to_s3(_url: &str, _bucket: &str, _key: &str) -> Result<(), ureq::Error> {
+async fn save_to_s3(url: &str, _bucket: &str, _key: &str) -> Result<(), reqwest::Error> {
     let access_key = std::env::var("AWS_ACCESS_KEY_ID").expect("access key empty");
     let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").expect("secret key empty");
     let access_token = std::env::var("AWS_SESSION_TOKEN").expect("session token empty");
     log::debug!("access key {}, secret {}", access_key, secret_key,);
-    //let _rd = ureq::get(url).call()?.into_reader();
+
+    let resp1 = reqwest::get(url).await?;
 
     let date = chrono::Utc::now();
     let host1 = "sls11.s3.amazonaws.com";
@@ -131,16 +135,23 @@ fn save_to_s3(_url: &str, _bucket: &str, _key: &str) -> Result<(), ureq::Error> 
     };
 
     let signature = s3.sign();
-    log::debug!("signature {:?}", signature);
-
     map.insert("Authorization".to_string(), signature);
 
-    let mut request = ureq::put(&url1);
-    for (k, v) in map {
-        request = request.set(&k, &v);
+    let mut stream1 = resp1.bytes_stream();
+    let mut count = 1;
+    while let Some(item) = stream1.next().await {
+        log::debug!("chunk {},{}", count, item.expect("chunk failed").len());
+        count += 1;
     }
 
-    let resp = request.send_string("hello 1")?.into_string();
-    log::debug!("resp {:?}", resp);
+    let resp2 = reqwest::Client::new()
+        .put(url1)
+        .headers((&map).try_into().expect("headers convert failed"))
+        .body::<&str>("one".into())
+        .send()
+        .await?;
+
+    log::debug!("S3 response {:?}", resp2);
+
     Ok(())
 }
