@@ -81,9 +81,7 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
     for x in results {
         match x {
             Ok(ep) => {
-                save_to_s3(ep.url.as_str(), "sls11", "ep1.mp3")
-                    .await
-                    .map_err(|_| SimpleError::new("s3 save failed"))?;
+                save_to_s3(ep.url.as_str(), "sls11", "ep1.mp3")?;
             }
             Err(e) => log::debug!("err {:?}", e),
         }
@@ -95,63 +93,65 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
     })
 }
 
-use futures::stream::StreamExt;
-use sloppy_auth::{aws::s3::Sign, util as u2};
-use std::convert::TryInto;
+use sloppy_auth::{aws::s3, chunk, util as u2};
 use url::Url;
 
-async fn save_to_s3(url: &str, _bucket: &str, _key: &str) -> Result<(), reqwest::Error> {
+fn save_to_s3(url: &str, bucket: &str, key: &str) -> SimpleResult<()> {
     let access_key = std::env::var("AWS_ACCESS_KEY_ID").expect("access key empty");
     let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").expect("secret key empty");
     let access_token = std::env::var("AWS_SESSION_TOKEN").expect("session token empty");
-    log::debug!("access key {}, secret {}", access_key, secret_key,);
 
-    let resp1 = reqwest::get(url).await?;
+    let response1 = ureq::get(&url)
+        .call()
+        .map_err(|e| SimpleError::new(e.to_string()))?;
+    let content_len: String = response1
+        .header("Content-Length")
+        .expect("content length empty")
+        .to_string();
+    let rd1 = response1.into_reader();
 
+    let host = "s3.amazonaws.com";
     let date = chrono::Utc::now();
-    let host1 = "sls11.s3.amazonaws.com";
-    let key1 = "test1";
-    let url1 = format!("http://{}/{}", host1, key1);
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert(
+    let host1 = format!("{}.{}", bucket, host);
+    let full_url = format!("http://{}/{}", host1, key);
+    let mut headers: HashMap<String, String> = HashMap::new();
+    headers.insert("Host".to_string(), host1.to_owned());
+    headers.insert(
+        "X-Amz-Content-Sha256".to_string(),
+        s3::STREAM_PAYLOAD.to_string(),
+    );
+
+    headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
+    headers.insert("x-amz-decoded-content-length".to_string(), content_len);
+    headers.insert("Transfer-Encoding".to_string(), "chunked".to_string());
+    headers.insert(
         "x-amz-date".to_string(),
         date.format(u2::LONG_DATETIME).to_string(),
     );
-    map.insert(
-        "X-Amz-Content-Sha256".to_string(),
-        u2::UNSIGNED_PAYLOAD.to_string(),
-    );
-    map.insert("Host".to_string(), host1.to_owned());
-    map.insert("X-Amz-Security-Token".to_string(), access_token.to_owned());
+    headers.insert("X-Amz-Security-Token".to_string(), access_token.to_owned());
 
-    let s3 = Sign {
+    let signer = s3::Sign {
         method: "PUT",
-        url: Url::parse(&url1).expect("url parse failed"),
+        url: Url::parse(&full_url).expect("url parse failed"),
         datetime: &date,
         region: "us-east-1",
         access_key: &access_key,
         secret_key: &secret_key,
-        headers: map.clone(),
+        headers: headers.clone(),
+        transfer_mode: s3::Transfer::Multiple,
     };
 
-    let signature = s3.sign();
-    map.insert("Authorization".to_string(), signature);
-
-    let mut stream1 = resp1.bytes_stream();
-    let mut count = 1;
-    while let Some(item) = stream1.next().await {
-        log::debug!("chunk {},{}", count, item.expect("chunk failed").len());
-        count += 1;
+    headers.insert("Authorization".to_string(), signer.sign());
+    let holder = s3::api::Holder::new(6 * 1024 * 1024, rd1, signer);
+    let chunk = chunk::Chunk::new(holder);
+    let mut request2 = ureq::put(&full_url);
+    for (k, v) in headers {
+        request2 = request2.set(&k, &v);
     }
 
-    let resp2 = reqwest::Client::new()
-        .put(url1)
-        .headers((&map).try_into().expect("headers convert failed"))
-        .body::<&str>("one".into())
-        .send()
-        .await?;
-
-    log::debug!("S3 response {:?}", resp2);
+    request2
+        .send(chunk)
+        .map_err(|_| SimpleError::new("save to s3 failed"))?;
 
     Ok(())
 }

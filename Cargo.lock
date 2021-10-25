@@ -317,6 +317,7 @@ dependencies = [
 name = "dianliao_cloud"
 version = "0.2.0"
 dependencies = [
+ "bytes 0.4.12",
  "chrono",
  "flexi_logger",
  "futures 0.3.17",
@@ -1546,12 +1547,13 @@ checksum = "9def91fd1e018fe007022791f865d0ccc9b3a0d5001e01aabb8b40e46000afb5"
 
 [[package]]
 name = "sloppy_auth"
-version = "1.2.0"
-source = "git+https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git?tag=v1.2.0#5d2238066960844fb9a26d091f687e43babc8867"
+version = "2.0.1"
+source = "git+https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git?tag=v2.0.1#336d9915a216d4f4ad9cd20d3acedfa5498a2465"
 dependencies = [
  "base64 0.13.0",
  "chrono",
  "hex",
+ "log",
  "md5",
  "ring",
  "url",

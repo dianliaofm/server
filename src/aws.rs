@@ -109,3 +109,15 @@ mod tests {
         dn.save_eps("test1", eps).expect("save episode failed");
     }
 }
+
+pub mod stream {
+    use bytes::Bytes;
+    use futures::stream::{Stream, StreamExt};
+    use reqwest::Result as ReqR;
+
+    pub type SBtyes = ReqR<Bytes>;
+
+    pub fn s3_chunks(s: impl Stream<Item = SBtyes>) -> impl Stream<Item = SBtyes> {
+        s.map(|result| result.map(|_| Bytes::from_static(b"hello")))
+    }
+}
