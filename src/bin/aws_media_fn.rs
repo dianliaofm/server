@@ -24,7 +24,7 @@ struct DB {
     #[serde(rename = "ApproximateCreationDateTime")]
     time: f32,
     keys: Attrs,
-    new_image: Attrs,
+    new_image: Option<Attrs>,
 }
 
 type Attrs = HashMap<String, Attr>;
@@ -65,24 +65,26 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         .map(|r: &Record| {
             let r1 = r.clone();
             match r1.event_name.as_str() {
-                "INSERT" => {
-                    let new_img: Attrs = r1.dynamodb.new_image;
-                    let attr1: Attr = new_img.get("timestamp").unwrap().clone();
-                    let timestamp: String = attr1.n.unwrap();
-                    let timestamp = timestamp.parse::<u64>().unwrap();
-                    let attr2 = new_img.get("url").unwrap().clone();
-                    let url = attr2.s.unwrap();
+                "INSERT" => match r1.dynamodb.new_image {
+                    Some(new_img) => {
+                        let attr1: Attr = new_img.get("timestamp").unwrap().clone();
+                        let timestamp: String = attr1.n.unwrap();
+                        let timestamp = timestamp.parse::<u64>().unwrap();
+                        let attr2 = new_img.get("url").unwrap().clone();
+                        let url = attr2.s.unwrap();
 
-                    let attr3 = new_img.get("title").unwrap().clone();
-                    let title = attr3.s.unwrap();
+                        let attr3 = new_img.get("title").unwrap().clone();
+                        let title = attr3.s.unwrap();
 
-                    Ok(Episode {
-                        timestamp,
-                        url,
-                        title,
-                        ..Default::default()
-                    })
-                }
+                        Ok(Episode {
+                            timestamp,
+                            url,
+                            title,
+                            ..Default::default()
+                        })
+                    }
+                    None => Err(SimpleError::new("Emtpy new image")),
+                },
                 t => Err(SimpleError::new(format!("event name {}", t))),
             }
         })
