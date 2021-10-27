@@ -8,7 +8,8 @@ use simple_error::SimpleResult;
 struct Request {
     table: String,
     start: usize,
-    end: usize,
+    window_size: usize,
+    left_padding: usize,
     region: String,
     rss_url: String,
 }
@@ -16,7 +17,7 @@ struct Request {
 #[derive(Serialize)]
 struct Response {
     request_id: String,
-    next_start: usize,
+    start: usize,
     count: usize,
 }
 
@@ -32,7 +33,8 @@ async fn fetch_save(
     Request {
         table,
         start,
-        end,
+        window_size,
+        left_padding,
         region,
         rss_url,
     }: Request,
@@ -41,15 +43,17 @@ async fn fetch_save(
     let rs_region = region.parse::<Region>().unwrap_or(Region::UsEast1);
     let parser = get_parser();
     let (eps, next_start) = parser
-        .parse_rss(&rss_url, (start, end))
+        .parse_rss(&rss_url, (start, start + window_size))
         .map_err(util::to_simple)?;
     let dynamo = Dynamo::new(rs_region);
     let count = eps.len();
-    dynamo.save_eps(&table, eps).map_err(util::to_simple)?;
+    if count > 0 {
+        dynamo.save_eps(&table, eps).map_err(util::to_simple)?;
+    }
 
     Ok(Response {
         request_id: ctx.request_id,
-        next_start,
+        start: next_start - left_padding,
         count,
     })
 }
