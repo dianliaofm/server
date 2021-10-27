@@ -57,6 +57,7 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         std::env::var("CHUNK_KB").map_err(|_| SimpleError::new("Chunk kb empty".to_string()))?;
     let ep_prefix =
         std::env::var("EP_PREFIX").map_err(|_| SimpleError::new("Ep prefix empty".to_string()))?;
+    let region = std::env::var("AWS_REGION").unwrap_or("us-east-1".to_string());
 
     let results: Vec<SimpleResult<Episode>> = req
         .records
@@ -71,9 +72,14 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
                     let timestamp = timestamp.parse::<u64>().unwrap();
                     let attr2 = new_img.get("url").unwrap().clone();
                     let url = attr2.s.unwrap();
+
+                    let attr3 = new_img.get("title").unwrap().clone();
+                    let title = attr3.s.unwrap();
+
                     Ok(Episode {
                         timestamp,
                         url,
+                        title,
                         ..Default::default()
                     })
                 }
@@ -83,7 +89,7 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         .collect();
 
     let saver = Saver {
-        region: "us-east-1".to_string(),
+        region,
         bucket: dest_buck,
         ep_prefix,
         chunk_kb: chunk_kb.parse::<usize>().unwrap_or(256),
