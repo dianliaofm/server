@@ -51,8 +51,12 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
-    let _dest_buck = std::env::var("DEST_BUCK")
+    let dest_buck = std::env::var("DEST_BUCK")
         .map_err(|_| SimpleError::new("Dest Bucket not set".to_string()))?;
+    let chunk_kb =
+        std::env::var("CHUNK_KB").map_err(|_| SimpleError::new("Chunk kb empty".to_string()))?;
+    let ep_prefix =
+        std::env::var("EP_PREFIX").map_err(|_| SimpleError::new("Ep prefix empty".to_string()))?;
 
     let results: Vec<SimpleResult<Episode>> = req
         .records
@@ -78,80 +82,44 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         })
         .collect();
 
+    let saver = Saver {
+        region: "us-east-1".to_string(),
+        bucket: dest_buck,
+        ep_prefix,
+        chunk_kb: chunk_kb.parse::<usize>().unwrap_or(256),
+    };
+
+    let mut msg = Vec::<String>::with_capacity(1);
     for x in results {
         match x {
             Ok(ep) => {
-                save_to_s3(ep.url.as_str(), "sls11", "ep1.mp3")?;
+                saver.save_to_s3(&ep)?;
+                msg.push(ep.title);
             }
-            Err(e) => log::debug!("err {:?}", e),
+            Err(e) => msg.push(e.to_string()),
         }
     }
 
     Ok(Response {
         request_id: ctx.request_id,
-        msg: "".to_string(),
+        msg: msg.join("\n"),
     })
 }
 
-use sloppy_auth::{aws::s3, chunk, util as u2};
-use url::Url;
+use sloppy_auth::aws::s3::client::{ChunkExt, Client};
 
-fn save_to_s3(url: &str, bucket: &str, key: &str) -> SimpleResult<()> {
-    let access_key = std::env::var("AWS_ACCESS_KEY_ID").expect("access key empty");
-    let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").expect("secret key empty");
-    let access_token = std::env::var("AWS_SESSION_TOKEN").expect("session token empty");
+struct Saver {
+    region: String,
+    bucket: String,
+    ep_prefix: String,
+    chunk_kb: usize,
+}
 
-    let response1 = ureq::get(&url)
-        .call()
-        .map_err(|e| SimpleError::new(e.to_string()))?;
-    let content_len: String = response1
-        .header("Content-Length")
-        .expect("content length empty")
-        .to_string();
-    let rd1 = response1.into_reader();
-
-    let host = "s3.amazonaws.com";
-    let date = chrono::Utc::now();
-    let host1 = format!("{}.{}", bucket, host);
-    let full_url = format!("http://{}/{}", host1, key);
-    let mut headers: HashMap<String, String> = HashMap::new();
-    headers.insert("Host".to_string(), host1.to_owned());
-    headers.insert(
-        "X-Amz-Content-Sha256".to_string(),
-        s3::STREAM_PAYLOAD.to_string(),
-    );
-
-    headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
-    headers.insert("x-amz-decoded-content-length".to_string(), content_len);
-    headers.insert("Transfer-Encoding".to_string(), "chunked".to_string());
-    headers.insert(
-        "x-amz-date".to_string(),
-        date.format(u2::LONG_DATETIME).to_string(),
-    );
-    headers.insert("X-Amz-Security-Token".to_string(), access_token.to_owned());
-
-    let signer = s3::Sign {
-        method: "PUT",
-        url: Url::parse(&full_url).expect("url parse failed"),
-        datetime: &date,
-        region: "us-east-1",
-        access_key: &access_key,
-        secret_key: &secret_key,
-        headers: headers.clone(),
-        transfer_mode: s3::Transfer::Multiple,
-    };
-
-    headers.insert("Authorization".to_string(), signer.sign());
-    let holder = s3::api::Holder::new(6 * 1024 * 1024, rd1, signer);
-    let chunk = chunk::Chunk::new(holder);
-    let mut request2 = ureq::put(&full_url);
-    for (k, v) in headers {
-        request2 = request2.set(&k, &v);
+impl Saver {
+    fn save_to_s3(&self, ep: &Episode) -> SimpleResult<()> {
+        let client = Client::new(self.region.clone());
+        let key = format!("{}{}", self.ep_prefix, ep.timestamp);
+        client.save_remote(&ep.url, self.chunk_kb, &self.bucket, &key)?;
+        Ok(())
     }
-
-    request2
-        .send(chunk)
-        .map_err(|_| SimpleError::new("save to s3 failed"))?;
-
-    Ok(())
 }

@@ -17,5 +17,4 @@ tokio = { version = "^1", features = ["full"] }
 lambda_runtime = "^0.3"
 chrono = "^0.4"
 sloppy_podcast_tool = { git = "https://e.coding.net/zhetengcloud/podcast/sloppy_podcast_tool.git", tag = "v1.5" }
-sloppy_auth = { git = "https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git", tag = "v2.0.1" }
-url = "^2.2"
+sloppy_auth = { git = "https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git", tag = "v2.2.0" }
