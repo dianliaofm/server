@@ -46,7 +46,10 @@ struct Response {
 async fn main() -> Result<(), Error> {
     util::init_log();
 
-    lambda_runtime::run(handler_fn(fetch_save)).await?;
+    match lambda_runtime::run(handler_fn(fetch_save)).await {
+        Ok(_) => log::debug!("lambda handler success"),
+        Err(e) => log::error!("lambda handler error: {:?}", e),
+    }
     Ok(())
 }
 
@@ -75,6 +78,8 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
 
                         let attr3 = new_img.get("title").unwrap().clone();
                         let title = attr3.s.unwrap();
+
+                        log::debug!("Episode {} {}", timestamp, title);
 
                         Ok(Episode {
                             timestamp,
