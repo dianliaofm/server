@@ -17,7 +17,7 @@ struct Request {
 #[derive(Serialize)]
 struct Response {
     request_id: String,
-    start: usize,
+    next_start: usize,
     count: usize,
 }
 
@@ -53,7 +53,7 @@ async fn fetch_save(
 
     Ok(Response {
         request_id: ctx.request_id,
-        start: next_start - left_padding,
+        next_start: next_start - left_padding,
         count,
     })
 }

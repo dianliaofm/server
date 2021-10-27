@@ -1,0 +1,37 @@
+{
+  "Comment": "Parse rss and save episode info to dynamo",
+  "StartAt": "Parse_rss",
+  "States": {
+    "Parse_rss": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "",
+        "Payload": {
+          "table": "episode",
+          "start.$": "$.next_start",
+          "window_size": 10000,
+          "left_padding": 3,
+          "region": "us-east-1",
+          "rss_url": "http://rss.lizhi.fm/rss/14093.xml"
+        }
+      },
+      "OutputPath": "$.Payload",
+      "Next": "Check_task"
+    },
+    "Check_task": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.count",
+          "NumericGreaterThan": 1,
+          "Next": "Parse_rss"
+        }
+      ],
+      "Default": "Task_finish"
+    },
+    "Task_finish": {
+      "Type": "Succeed"
+    }
+  }
+}

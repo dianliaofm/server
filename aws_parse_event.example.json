@@ -1,7 +1,0 @@
-{
-  "table": "test1",
-  "start": 100,
-  "end": 20000,
-  "region": "us-east-1",
-  "rss_url":  "http://rss.lizhi.fm/rss/14093.xml"
-}
