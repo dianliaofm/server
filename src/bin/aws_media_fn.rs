@@ -58,6 +58,11 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         .map_err(|_| SimpleError::new("Dest Bucket not set".to_string()))?;
     let chunk_kb =
         std::env::var("CHUNK_KB").map_err(|_| SimpleError::new("Chunk kb empty".to_string()))?;
+    /*
+     * The chunk size must be at least 8 KB. We recommend a chunk size of a least 64 KB for better performance
+     * https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html
+     */
+    let chunk_kb = chunk_kb.parse::<usize>().unwrap_or(64);
     let ep_prefix =
         std::env::var("EP_PREFIX").map_err(|_| SimpleError::new("Ep prefix empty".to_string()))?;
     let region = std::env::var("AWS_REGION").unwrap_or("us-east-1".to_string());
@@ -99,7 +104,7 @@ async fn fetch_save(req: Request, ctx: Context) -> SimpleResult<Response> {
         region,
         bucket: dest_buck,
         ep_prefix,
-        chunk_kb: chunk_kb.parse::<usize>().unwrap_or(256),
+        chunk_kb,
     };
 
     let mut msg = Vec::<String>::with_capacity(1);
