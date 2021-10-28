@@ -13,7 +13,7 @@ aws_log := $(dist)/aws_log
 aws_parse_event := $(dist)/aws_parse_event.json
 aws_media_event := $(dist)/aws_media_event.json
 
-$(rl_dir)/%: src/*.rs src/bin/*.rs
+$(rl_dir)/%: src/*.rs src/bin/*.rs Cargo.toml
 	cargo build --release --bin $(@F) --target $(tg_musl)
 
 $(dist)/%/bootstrap: $(rl_dir)/%_fn
