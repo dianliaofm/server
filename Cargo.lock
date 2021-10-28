@@ -1439,8 +1439,8 @@ checksum = "9def91fd1e018fe007022791f865d0ccc9b3a0d5001e01aabb8b40e46000afb5"
 
 [[package]]
 name = "sloppy_auth"
-version = "2.2.1"
-source = "git+https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git?tag=v2.2.1#8376bbb25624e6eccbd966ca3d2999b7344657bb"
+version = "2.2.2"
+source = "git+https://e.coding.net/zhetengcloud/serverless/sloppy_auth.git?tag=v2.2.2#6852f1975fde2e6f3ed0045d27ce7be264732fa4"
 dependencies = [
  "base64 0.13.0",
  "chrono",
