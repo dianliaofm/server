@@ -1,4 +1,9 @@
-use crate::{EpisodeResult, Range};
+use crate::entity::Episode;
+use std::error::Error;
+pub type Range = (usize, usize);
+pub type NextBytePosition = usize;
+pub type EpisodeInfo = (Vec<Episode>, NextBytePosition);
+pub type EpisodeResult = Result<EpisodeInfo, Box<dyn Error>>;
 
 pub trait Parser {
     fn parse_rss(&self, url: &str, range: Range) -> EpisodeResult;
@@ -7,7 +12,11 @@ pub trait Parser {
 pub mod sloppy {
     use super::*;
     use crate::entity::Episode;
-    use sloppy_podcast_tool::{model::Item, parser::Parser as XParser};
+    use sloppy_podcast_tool::{
+        date::{parse_utc8_simpledate, to_timestamp},
+        model::Item,
+        parser::Parser as XParser,
+    };
     use std::io::BufReader;
     use ureq::{Agent, AgentBuilder};
 
@@ -47,6 +56,27 @@ pub mod sloppy {
             ))
         }
     }
+
+    const EMPTY_KEY: &str = "empty";
+
+    impl From<Item> for Episode {
+        fn from(item: Item) -> Self {
+            let date = item.pub_date;
+            let timestamp = to_timestamp(&date).unwrap_or_default();
+            let date_key = parse_utc8_simpledate(&date).unwrap_or(EMPTY_KEY.to_string());
+            Episode {
+                title: item.title,
+                subtitle: item.subtitle,
+                description: item.description,
+                date,
+                timestamp,
+                url: item.enclosure.url,
+                image: item.image.href,
+                date_key,
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -70,7 +100,7 @@ pub mod sloppy {
                     .expect("get eps failed");
 
                 for i in eps {
-                    debug!("{:?}", i);
+                    debug!("{:?}, {}", i.image, i.date_key);
                 }
                 debug!("next byte start {}", next_start);
 

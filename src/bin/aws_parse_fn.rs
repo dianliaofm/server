@@ -12,6 +12,7 @@ struct Request {
     left_padding: usize,
     region: String,
     rss_url: String,
+    total_count: usize,
 }
 
 #[derive(Serialize)]
@@ -19,6 +20,7 @@ struct Response {
     request_id: String,
     next_start: usize,
     count: usize,
+    total_count: usize,
 }
 
 #[tokio::main]
@@ -37,6 +39,7 @@ async fn fetch_save(
         left_padding,
         region,
         rss_url,
+        total_count,
     }: Request,
     ctx: Context,
 ) -> SimpleResult<Response> {
@@ -48,12 +51,16 @@ async fn fetch_save(
     let dynamo = Dynamo::new(rs_region);
     let count = eps.len();
     if count > 0 {
-        dynamo.save_eps(&table, eps).map_err(util::to_simple)?;
+        dynamo
+            .save_eps(&table, eps)
+            .await
+            .map_err(util::to_simple)?;
     }
 
     Ok(Response {
         request_id: ctx.request_id,
         next_start: next_start - left_padding,
         count,
+        total_count: total_count + count,
     })
 }

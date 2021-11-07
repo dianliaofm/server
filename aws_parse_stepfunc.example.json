@@ -8,8 +8,9 @@
       "Parameters": {
         "FunctionName": "",
         "Payload": {
-          "table": "episode",
+          "table": "epis_meta",
           "start.$": "$.next_start",
+          "total_count.$": "$.total_count",
           "window_size": 10000,
           "left_padding": 3,
           "region": "us-east-1",
@@ -23,8 +24,16 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.count",
-          "NumericGreaterThan": 1,
+          "And": [
+            {
+              "Variable": "$.count",
+              "NumericGreaterThan": 1
+            },
+            {
+              "Variable": "$.total_count",
+              "NumericLessThan": 10
+            }
+          ],
           "Next": "Parse_rss"
         }
       ],
